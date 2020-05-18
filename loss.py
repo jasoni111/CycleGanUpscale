@@ -14,6 +14,36 @@ loss_obj = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 # def w_generator_loss(generated):
 #   return -tf.reduce_mean(generated)
+def w_d_loss(real_score,generated_score):
+  real_loss = tf.reduce_mean(real_score)
+  gen_loss = tf.reduce_mean(generated_score)
+  return gen_loss - real_loss
+
+def w_g_loss(generated_score):
+  return -tf.reduce_mean(generated_score)
+
+
+
+def _interpolate(a, b):
+  shape = [tf.shape(a)[0]] + [1] * (a.shape.ndims - 1)
+  alpha = tf.random.uniform(shape=shape, minval=0., maxval=1.)
+  inter = a + alpha * (b - a)
+  inter.set_shape(a.shape)
+  return inter
+
+def gradient_penalty(f, real, fake):
+  x = _interpolate(real, fake)
+  with tf.GradientTape() as tape:
+      tape.watch(x)
+      pred = f(x)
+  grad = tape.gradient(pred, x)
+  norm = tf.norm(tf.reshape(grad, [tf.shape(grad)[0], -1]), axis=1)
+  gp = tf.reduce_mean((norm - 1.)**2)
+  return gp
+
+  # return  _gradient_penalty(f, real, fake)
+
+
 
 def discriminator_loss(real, generated):
   real_loss = loss_obj(tf.ones_like(real), real)
