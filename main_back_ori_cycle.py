@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # import PIL
 from data import getAnimeCleanData, getCelebaData
 from loss import discriminator_loss, generator_loss, cycle_loss, identity_loss
@@ -8,38 +8,11 @@ from discriminator import Discriminator
 from generator import Generator
 from datetime import datetime
 
-def testfun():
-    
-
-    image = next(iter(getCelebaData()))
-
-    plt.ion()
-    plt.show()
-    fig = plt.figure(figsize=(8, 8)) 
-    # plt.subplot(2,2,1)
-    im = image.numpy()[0,:,:,:]
-    print(im.dtype)
-    print(im.min())
-    print(im.max())
-    # print(im.dType)
-    print(image.numpy()[0,:,:,:].shape )
-    plt.imshow(image.numpy()[0,:,:,:]*0.5+0.5)
-    fig.canvas.draw()
-    plt.show(block=False)
-    fig.canvas.draw()
-    plt.pause(0.05)
-    # time.sleep(0.01)
-    # fig.pause(0.0001)
-    # plt.pause(0.001)
-    while True:
-        pass
-    print(image.shape)
 
 def run_tensorflow():
     """
     [summary] This is needed for tensorflow to free up my gpu ram...
     """
-    plt.ion()
     
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -164,34 +137,18 @@ def run_tensorflow():
             gen_anime_loss, gen_human_loss, disc_x_loss, disc_y_loss, total_gen_anime_loss, total_gen_human_loss
 
     counter = 0
+    i = -1
     while True:
+        i = i+1
         counter=counter+1
         AnimeBatchImage  = next(iter(AnimeCleanData))
-        CelebaBatchImage = next(iter(CelebaData))
-
-        
-
-        
+        CelebaBatchImage = next(iter(CelebaData))  
 
         if not(i % 5):
-            # tf.summary.trace_on(graph=True, profiler=True)
-
             fake_anime, cycled_human, fake_human, cycled_anime , same_human , same_anime, \
                 gen_anime_loss, gen_human_loss, disc_x_loss, disc_y_loss, total_gen_anime_loss, total_gen_human_loss = trainstep(CelebaBatchImage, AnimeBatchImage)
 
             with file_writer.as_default():
-                
-# # Call only one tf.function when tracing.
-# z = my_func(x, y)
-# with writer.as_default():
-#   tf.summary.trace_export(
-#       name="my_func_trace",
-#       step=0,
-#       profiler_outdir=logdir)
-                # tf.summary.trace_export(
-                #     name="my_func_trace",
-                #     step=counter,
-                #     profiler_outdir = logdir)
 
                 tf.summary.image("fake_anime", fake_anime, step=counter)
                 tf.summary.image("cycled_human", cycled_human, step=counter)
@@ -209,52 +166,6 @@ def run_tensorflow():
                 # tf.summary.image("CelebaBatchImage", CelebaBatchImage, step=counter)
         else:
             trainstep(CelebaBatchImage, AnimeBatchImage)
-        
-    # to_realworld = generator_to_anime(image)
-    # print(to_realworld.numpy()[0].shape)
-    # print(np.float32(to_realworld.numpy()[0]).dtype)
-    # # PIL.ImageShow
-    # plt.figure(figsize=(8, 8)) 
-    # plt.subplot(2,2,1)
-    # plt.imshow(np.float32(to_realworld.numpy()[0])*0.5+0.5)
-    # plt.show(block=False)
-    # for i in range()
-
-#     to_zebra = generator_to_anime(sample_horse)
-# to_horse = generator_to_real(sample_zebra)
-# plt.figure(figsize=(8, 8))
-# contrast = 8
-
-# imgs = [sample_horse, to_zebra, sample_zebra, to_horse]
-# title = ['Horse', 'To Zebra', 'Zebra', 'To Horse']
-
-# for i in range(len(imgs)):
-#   plt.subplot(2, 2, i+1)
-#   plt.title(title[i])
-#   if i % 2 == 0:
-#     plt.imshow(imgs[i][0] * 0.5 + 0.5)
-#   else:
-#     plt.imshow(imgs[i][0] * 0.5 * contrast + 0.5)
-# plt.show()
-
-
-
-
-
-
-
-#             @tf.function
-# def train_step(x, y):
-#   with tf.GradientTape() as tape:
-#     predictions = model(x)
-#     loss = loss_object(y, predictions)
-#     scaled_loss = optimizer.get_scaled_loss(loss)
-#   scaled_gradients = tape.gradient(scaled_loss, model.trainable_variables)
-#   gradients = optimizer.get_unscaled_gradients(scaled_gradients)
-#   optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-#   return loss
-
-        
 
 # testfun()
 run_tensorflow()
