@@ -210,34 +210,21 @@ def run_tensorflow():
             )
         )
 
-        
+        discriminator_human_optimizer.apply_gradients(
+            zip(discriminator_human_gradients, discriminator_human.trainable_variables)
+        )
 
 
+        discriminator_anime_optimizer.apply_gradients(
+            zip(discriminator_anime_gradients, discriminator_anime.trainable_variables)
+        )
 
-        # discriminator_human_optimizer.apply_gradients(
-        #     zip(discriminator_human_gradients, discriminator_human.trainable_variables)
-        # )
-
-
-        # discriminator_anime_optimizer.apply_gradients(
-        #     zip(discriminator_anime_gradients, discriminator_anime.trainable_variables)
-        # )
-
-        # discriminator_human_optimizer.apply_gradients(
-        #     zip(discriminator_human_gradients, discriminator_human.trainable_variables)
-        # )
-
-
-        # discriminator_anime_optimizer.apply_gradients(
-        #     zip(discriminator_anime_gradients, discriminator_anime.trainable_variables)
-        # )
-
-        # discriminator_anime_upscale_optimizer.apply_gradients(
-        #     zip(
-        #         discriminator_upscale_gradients,
-        #         discriminator_anime_upscale.trainable_variables,
-        #     )
-        # )
+        discriminator_anime_upscale_optimizer.apply_gradients(
+            zip(
+                discriminator_upscale_gradients,
+                discriminator_anime_upscale.trainable_variables,
+            )
+        )
 
         return (
             fake_anime,
