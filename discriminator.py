@@ -24,10 +24,6 @@ class Discriminator(tf.keras.layers.Layer):
         self.layers.append(  tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
 
-        # self.layers.append(  tf.keras.layers.Conv2D(512, (4,4), strides=(2,2), padding='same', kernel_initializer=init))
-        # self.layers.append(  tfa.layers.InstanceNormalization(axis=-1))
-        # self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2))
-
         self.layers.append(  tf.keras.layers.Conv2D(256, (4,4), padding='same', kernel_initializer=init))
         self.layers.append(  tfa.layers.InstanceNormalization(axis=-1))
         self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2))
@@ -49,17 +45,33 @@ class W_Discriminator(tf.keras.layers.Layer):
 
     def build(self, input_shape):
         dim = input_shape[1]
-        mult = 1
-        i = dim // 2
-        self.layers = []
-
         init = tf.keras.initializers.RandomNormal(stddev=0.02)
 
-        self.layers.append(  tf.keras.layers.Conv2D(16, (4,4), strides=(2,2), padding='same', kernel_initializer=init))
+        self.layers = []
+        self.layers.append(  tf.keras.layers.Conv2D(32, (3,3), padding='same', kernel_initializer=init))
+        self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
+        if dim>=256:
+            mult = 4
+            i = dim // 16
+            
+            self.layers.append(  tf.keras.layers.Conv2D(32, (4,4), strides=(4,4), padding='same', kernel_initializer=init))
+            self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
+
+            self.layers.append(  tf.keras.layers.Conv2D(32, (4,4), strides=(4,4), padding='same', kernel_initializer=init))
+            self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
+
+        else:
+            mult = 2
+            i = dim // 2
+
+            self.layers.append(  tf.keras.layers.Conv2D(16, (2,2), strides=(2,2), padding='same', kernel_initializer=init))
+            self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
+
+        self.layers.append(  tf.keras.layers.Conv2D(32, (3,3), padding='same', kernel_initializer=init))
         self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
 
         while i > 4 :
-            self.layers.append(  tf.keras.layers.Conv2D(16 * 2 * mult, (4,4), strides=(2,2), padding='same', kernel_initializer=init))
+            self.layers.append(  tf.keras.layers.Conv2D(16 * mult, (2,2), strides=(2,2), padding='same', kernel_initializer=init))
             self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
             i //=2
             mult *= 2

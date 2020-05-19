@@ -31,6 +31,8 @@ def _interpolate(a, b):
   inter.set_shape(a.shape)
   return inter
 
+
+
 def gradient_penalty(f, real, fake):
   x = _interpolate(real, fake)
   with tf.GradientTape() as tape:
@@ -43,6 +45,14 @@ def gradient_penalty(f, real, fake):
 
   # return  _gradient_penalty(f, real, fake)
 
+def discriminator_upscale_loss(real, generated,cycled,same):
+  real_loss = loss_obj(tf.ones_like(real), real)
+  zeros = tf.zeros_like(generated)
+  generated_loss = loss_obj(zeros, generated)*3
+  generated_loss += loss_obj(zeros, cycled)
+  generated_loss += loss_obj(zeros, same)
+  total_disc_loss = real_loss + generated_loss
+  return total_disc_loss * 0.5
 
 
 def discriminator_loss(real, generated):

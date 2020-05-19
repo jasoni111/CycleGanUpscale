@@ -16,7 +16,7 @@ class ResNetBlockInstanceNorm(tf.keras.layers.Layer):
         self.relu = tf.keras.layers.ReLU()
         self.cov2 = tf.keras.layers.Conv2D(self.num_filter, (3,3), padding = 'same',kernel_initializer=init)
         self.i_norm2 =  tfa.layers.InstanceNormalization(axis=-1)
-        self.concat = tf.keras.layers.concatenate
+        self.sum = tf.keras.layers.Add()
 
     def call(self, image):
         y = self.cov1(image)
@@ -24,7 +24,7 @@ class ResNetBlockInstanceNorm(tf.keras.layers.Layer):
         y = self.relu(y)
         y = self.cov2(y)
         y = self.i_norm2(y)
-        return self.concat([y,image])
+        return self.sum([y,image])
 
 # (tf.keras.layers.Layer):
 #     def __init__(self):

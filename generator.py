@@ -20,13 +20,13 @@ class Generator(tf.keras.layers.Layer):
         layers = tf.keras.layers
         # print("aa")
         # self.layers["a"] = Layers.Conv2D(64,(1,1),padding = 'same',kernel_initializer=init )
-        self.layers.append( layers.Conv2D(32,(7,7),padding = 'same',kernel_initializer=init ))
+        self.layers.append( layers.Conv2D(32,(3,3),padding = 'same',kernel_initializer=init ))
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append( layers.ReLU() )
         self.layers.append( layers.Conv2D(64,(3,3), strides=(2,2),padding = 'same',kernel_initializer=init )  )
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append( layers.ReLU() )
-        self.layers.append( layers.Conv2D(128,(7,7), strides=(2,2),padding = 'same',kernel_initializer=init )  )
+        self.layers.append( layers.Conv2D(128,(3,3), strides=(2,2),padding = 'same',kernel_initializer=init )  )
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append( layers.ReLU() )
         for _ in range(4):
@@ -37,7 +37,7 @@ class Generator(tf.keras.layers.Layer):
         self.layers.append( layers.Conv2DTranspose(64,(3,3), strides=(2,2),padding = 'same',kernel_initializer=init )  )
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append( layers.ReLU() )
-        self.layers.append( layers.Conv2D(3,(7,7), strides=(1,1),padding = 'same',kernel_initializer=init )  )
+        self.layers.append( layers.Conv2D(3,(1,1), strides=(1,1),padding = 'same',kernel_initializer=init )  )
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append( tf.keras.activations.tanh )
 
@@ -63,20 +63,27 @@ class GeneratorV2(tf.keras.layers.Layer):
 
         self.layers.append( layers.Conv2D(32,(3,3),padding = 'same',kernel_initializer=init ))
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
-        self.layers.append( layers.ReLU() )
+        self.layers.append( layers.PReLU() )
         self.layers.append( layers.Conv2D(64,(3,3), strides=(2,2),padding = 'same',kernel_initializer=init )  )
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
-        self.layers.append( layers.ReLU() )
-        self.layers.append( layers.Conv2D(128,(3,3), strides=(2,2),padding = 'same',kernel_initializer=init )  )
+        self.layers.append( layers.PReLU() )
+        self.layers.append( layers.Conv2D(64,(3,3), strides=(2,2),padding = 'same',kernel_initializer=init )  )
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
-        self.layers.append( layers.ReLU() )
+        self.layers.append( layers.PReLU() )
 
         for _ in range(4):
-            self.layers.append(ResNetBlockInstanceNorm(num_filter=128) )
+            self.layers.append(ResNetBlockInstanceNorm(num_filter=64) )
+
+        
         self.layers.append( layers.Conv2D(256,(3,3),padding = 'same',kernel_initializer=init )  )
         self.layers.append( SubpixelConv2D(input_shape,scale=2) )
-        self.layers.append( layers.Conv2D(256,(3,3),padding = 'same',kernel_initializer=init )  )
+        self.layers.append( layers.PReLU() )
+        
+        self.layers.append( layers.Conv2D(256,(3,3),padding = 'same',kernel_initializer=init )  ) 
         self.layers.append( SubpixelConv2D(input_shape,scale=2) )
+        self.layers.append( layers.PReLU() )
+        # self.layers.append( layers.Conv2D(64,(3,3),padding = 'same',kernel_initializer=init )  ) 
+        # self.layers.append( layers.PReLU() )
         self.layers.append( layers.Conv2D(3,(1,1), strides=(1,1),padding = 'same',kernel_initializer=init )  )
         # self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append(tf.keras.layers.Activation("tanh" , dtype='float32') )
@@ -109,21 +116,21 @@ class UpsampleGenerator(tf.keras.layers.Layer):
 
         self.layers.append( layers.Conv2D(64,(3,3),padding = 'same',kernel_initializer=init ))
         self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
-        self.layers.append( layers.ReLU() )
+        self.layers.append( layers.PReLU() )
 
-        for _ in range(5):
+        for _ in range(4):
             self.layers.append(ResNetBlockInstanceNorm(num_filter=64) )
 
 
         self.layers.append( layers.Conv2D(256,(3,3),padding = 'same',kernel_initializer=init )  )
         self.layers.append( SubpixelConv2D(input_shape,scale=2) )
-        self.layers.append( layers.ReLU() )
+        self.layers.append( layers.PReLU() )
         
         self.layers.append( layers.Conv2D(256,(3,3),padding = 'same',kernel_initializer=init )  )
         self.layers.append( SubpixelConv2D(input_shape,scale=2) )
-        self.layers.append( layers.ReLU() )
+        self.layers.append( layers.PReLU() )
 
-        self.layers.append( layers.Conv2D(3,(1,1), strides=(1,1),padding = 'same',kernel_initializer=init )  )
+        self.layers.append( layers.Conv2D(3,(9,9), strides=(1,1),padding = 'same',kernel_initializer=init )  )
         # self.layers.append( tfa.layers.InstanceNormalization(axis=-1) )
         self.layers.append(tf.keras.layers.Activation("tanh" , dtype='float32') )
 
