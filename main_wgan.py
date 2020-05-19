@@ -1,5 +1,9 @@
+# experimental_run_v2<--------
+
 import tensorflow as tf
 import numpy as np
+
+
 
 # import matplotlib.pyplot as plt
 # import PIL
@@ -162,8 +166,8 @@ def run_tensorflow():
 
             discriminator_human_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), real_human, fake_human)*10
             discriminator_anime_gradient_penalty = gradient_penalty(functools.partial(discriminator_anime, training=True), real_anime, fake_anime)*10
-            discriminator_upscale_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), BigAnimeBatchImage,fake_anime_upscale )*5
-            discriminator_upscale_gradient_penalty += gradient_penalty(functools.partial(discriminator_human, training=True), BigAnimeBatchImage,real_anime_upscale )*5
+            discriminator_upscale_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,fake_anime_upscale )*5
+            discriminator_upscale_gradient_penalty += gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,real_anime_upscale )*5
 
             disc_human_loss =  w_d_loss(disc_real_human, disc_fake_human) + discriminator_human_gradient_penalty
             disc_anime_loss =  w_d_loss(disc_real_anime, disc_fake_anime) + discriminator_anime_gradient_penalty
