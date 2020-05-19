@@ -8,8 +8,15 @@ import numpy as np
 # import matplotlib.pyplot as plt
 # import PIL
 from data import getAnimeCleanData, getCelebaData
-from loss import w_d_loss, w_g_loss, cycle_loss, identity_loss, mse_loss, gradient_penalty
-from discriminator import Discriminator
+from loss import (
+    w_d_loss,
+    w_g_loss,
+    cycle_loss,
+    identity_loss,
+    mse_loss,
+    gradient_penalty,
+)
+from discriminator import W_Discriminator
 
 # , UpScaleDiscriminator
 from generator import GeneratorV2, UpsampleGenerator
@@ -34,35 +41,49 @@ def run_tensorflow():
             # Memory growth must be set before GPUs have been initialized
             print(e)
 
-    # mixed_precision = tf.keras.mixed_precision.experimental
 
-    # policy = mixed_precision.Policy("mixed_float16")
-    # mixed_precision.set_policy(policy)
+    mixed_precision = tf.keras.mixed_precision.experimental
 
-    AnimeCleanData = getAnimeCleanData(BATCH_SIZE=16)
-    CelebaData = getCelebaData(BATCH_SIZE=16)
+    policy = mixed_precision.Policy("mixed_float16")
+    mixed_precision.set_policy(policy)
+
+    AnimeCleanData = getAnimeCleanData(BATCH_SIZE=7)
+    CelebaData = getCelebaData(BATCH_SIZE=7)
 
     logdir = "./logs/train_data/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     file_writer = tf.summary.create_file_writer(logdir)
 
-    # AnimeBatchImage = next(iter(AnimeCleanData))
-    # CelebaBatchImage = next(iter(CelebaData))
-    # print(image.dtype)
+    generator_to_anime_optimizer = mixed_precision.LossScaleOptimizer(
+        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+    )
+    generator_to_human_optimizer = mixed_precision.LossScaleOptimizer(
+        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+    )
 
-    # # # if a checkpoint exists, restore the latest checkpoint.
-    # # if ckpt_manager.latest_checkpoint:
-    # #   ckpt.restore(ckpt_manager.latest_checkpoint)
-    # #   print ('Latest checkpoint restored!!')
+    generator_anime_upscale_optimizer = mixed_precision.LossScaleOptimizer(
+        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+    )
 
-    generator_to_anime_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-    generator_to_real_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    discriminator_human_optimizer = mixed_precision.LossScaleOptimizer(
+        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+    )
+    discriminator_anime_optimizer = mixed_precision.LossScaleOptimizer(
+        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+    )
 
-    generator_anime_upscale_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    discriminator_anime_upscale_optimizer = mixed_precision.LossScaleOptimizer(
+        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+    )
 
-    discriminator_human_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-    discriminator_anime_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    # generator_to_anime_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    # generator_to_human_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
-    discriminator_anime_upscale_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    # generator_anime_upscale_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+
+    # discriminator_human_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    # discriminator_anime_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+
+    # discriminator_anime_upscale_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
     generator_to_anime = GeneratorV2()
     generator_to_real = GeneratorV2()
@@ -70,10 +91,10 @@ def run_tensorflow():
     generator_anime_upscale = UpsampleGenerator()
 
     # input: Batch, 256,256,3
-    discriminator_human = Discriminator()
-    discriminator_anime = Discriminator()
+    discriminator_human = W_Discriminator()
+    discriminator_anime = W_Discriminator()
 
-    discriminator_anime_upscale = Discriminator()
+    discriminator_anime_upscale = W_Discriminator()
 
     checkpoint_path = "./checkpoints/train"
 
@@ -85,19 +106,12 @@ def run_tensorflow():
         discriminator_anime=discriminator_anime,
         discriminator_anime_upscale=discriminator_anime_upscale,  # *
         generator_to_anime_optimizer=generator_to_anime_optimizer,
-        generator_to_real_optimizer=generator_to_real_optimizer,
+        generator_to_human_optimizer=generator_to_human_optimizer,
         generator_anime_upscale_optimizer=generator_anime_upscale_optimizer,  # *
         discriminator_human_optimizer=discriminator_human_optimizer,
         discriminator_anime_optimizer=discriminator_anime_optimizer,
         discriminator_anime_upscale_optimizer=discriminator_anime_upscale_optimizer,  # *
     )
-
-    # print("generator_to_anime",generator_to_anime.trainable_variables)
-    # print("generator_to_real",generator_to_real.trainable_variables)
-    # print("generator_anime_upscale",generator_anime_upscale.trainable_variables)
-    # print("discriminator_human",discriminator_human.trainable_variables)
-    # print("discriminator_anime",discriminator_anime.trainable_variables)
-    # print("discriminator_anime_upscale",discriminator_anime_upscale.trainable_variables)
 
     ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
 
@@ -110,10 +124,13 @@ def run_tensorflow():
     # x is human, y is anime
     @tf.function
     def trainstep(real_human, real_anime, big_anime):
+
         with tf.GradientTape(persistent=True) as tape:
 
             fake_anime = generator_to_anime(real_human, training=True)
             cycled_human = generator_to_real(fake_anime, training=True)
+
+            print("generator_to_anime", generator_to_anime.count_params())
 
             fake_human = generator_to_real(real_anime, training=True)
             cycled_anime = generator_to_anime(fake_human, training=True)
@@ -124,17 +141,19 @@ def run_tensorflow():
 
             disc_real_human = discriminator_human(real_human, training=True)
             disc_real_anime = discriminator_anime(real_anime, training=True)
+            print("discriminator_human", discriminator_human.count_params())
 
             disc_fake_human = discriminator_human(fake_human, training=True)
             disc_fake_anime = discriminator_anime(fake_anime, training=True)
 
-            fake_anime_upscale = generator_anime_upscale(fake_anime)
-            real_anime_upscale = generator_anime_upscale(real_anime)
+            fake_anime_upscale = generator_anime_upscale(fake_anime, training=True)
+            real_anime_upscale = generator_anime_upscale(cycled_anime, training=True)
 
-            disc_fake_upscale = discriminator_anime_upscale(fake_anime_upscale)
-            disc_real_upscale = discriminator_anime_upscale(real_anime_upscale)
-            disc_real_big = discriminator_anime_upscale(big_anime)
+            disc_fake_upscale = discriminator_anime_upscale(fake_anime_upscale, training=True)
 
+            disc_real_upscale = discriminator_anime_upscale(real_anime_upscale, training=True)
+            disc_real_big = discriminator_anime_upscale(big_anime, training=True)
+            # assert()
             # calculate the loss
             gen_anime_loss = w_g_loss(disc_fake_anime)
             gen_human_loss = w_g_loss(disc_fake_human)
@@ -145,69 +164,107 @@ def run_tensorflow():
 
             # Total generator loss = adversarial loss + cycle loss
             total_gen_anime_loss = (
-                gen_anime_loss
+                gen_anime_loss * 5
                 + total_cycle_loss
                 + identity_loss(real_anime, same_anime)
             )
 
             total_gen_human_loss = (
-                gen_human_loss
+                gen_human_loss * 5
                 + total_cycle_loss
                 + identity_loss(real_human, same_human)
             )
-            
+
             gen_upscale_loss = (
-                  w_g_loss(disc_fake_upscale)
-                +  w_g_loss(disc_real_upscale)
-                + mse_loss(big_anime, real_anime_upscale)
-                + identity_loss(big_anime, real_anime_upscale)
+                w_g_loss(disc_fake_upscale)
+                + w_g_loss(disc_real_upscale)
+                # + mse_loss(big_anime, real_anime_upscale) * 0.1
+                + identity_loss(big_anime, real_anime_upscale) * 0.1
             )
-            
 
             discriminator_human_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), real_human, fake_human)*10
             discriminator_anime_gradient_penalty = gradient_penalty(functools.partial(discriminator_anime, training=True), real_anime, fake_anime)*10
             discriminator_upscale_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,fake_anime_upscale )*5
             discriminator_upscale_gradient_penalty += gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,real_anime_upscale )*5
 
-            disc_human_loss =  w_d_loss(disc_real_human, disc_fake_human) + discriminator_human_gradient_penalty
-            disc_anime_loss =  w_d_loss(disc_real_anime, disc_fake_anime) + discriminator_anime_gradient_penalty
+            disc_human_loss = (
+                w_d_loss(disc_real_human, disc_fake_human)
+                + discriminator_human_gradient_penalty
+            )
+            disc_anime_loss = (
+                w_d_loss(disc_real_anime, disc_fake_anime)
+                + discriminator_anime_gradient_penalty
+            )
             # # print("ggg",big_anime.shape)
-            disc_upscale_loss =  w_d_loss(disc_real_big, disc_fake_upscale) 
-            disc_upscale_loss += w_d_loss(disc_real_big, disc_real_upscale) + discriminator_upscale_gradient_penalty
+            disc_upscale_loss = w_d_loss(disc_real_big, disc_fake_upscale)
+            disc_upscale_loss += (
+                w_d_loss(disc_real_big, disc_real_upscale)
+                + discriminator_upscale_gradient_penalty
+            )
 
-        # Calculate the gradients for generator and discriminator
-        generator_to_anime_gradients = tape.gradient(
-            total_gen_anime_loss, generator_to_anime.trainable_variables
-        )
-        generator_to_human_gradients = tape.gradient(
-            total_gen_human_loss, generator_to_real.trainable_variables
+            scaled_total_gen_anime_loss = generator_to_anime_optimizer.get_scaled_loss(
+                total_gen_anime_loss
+            )
+            scaled_total_gen_human_loss = generator_to_human_optimizer.get_scaled_loss(
+                total_gen_human_loss
+            )
+            scaled_gen_upscale_loss = generator_anime_upscale_optimizer.get_scaled_loss(
+                gen_upscale_loss
+            )
+            scaled_disc_human_loss = discriminator_human_optimizer.get_scaled_loss(
+                disc_human_loss
+            )
+            scaled_disc_anime_loss = discriminator_anime_optimizer.get_scaled_loss(
+                disc_anime_loss
+            )
+            scaled_disc_upscale_loss = discriminator_anime_upscale_optimizer.get_scaled_loss(
+                disc_upscale_loss
+            )
+
+        generator_to_anime_gradients = generator_to_anime_optimizer.get_unscaled_gradients(
+            tape.gradient(
+                scaled_total_gen_anime_loss, generator_to_anime.trainable_variables
+            )
         )
 
-        discriminator_human_gradients = tape.gradient(
-            disc_human_loss, discriminator_human.trainable_variables
-        )
-        discriminator_anime_gradients = tape.gradient(
-            disc_anime_loss, discriminator_anime.trainable_variables
-        )
-
-        generator_upscale_gradients = tape.gradient(
-            gen_upscale_loss, generator_anime_upscale.trainable_variables
+        generator_to_human_gradients = generator_to_human_optimizer.get_unscaled_gradients(
+            tape.gradient(
+                scaled_total_gen_human_loss, generator_to_real.trainable_variables
+            )
         )
 
-        discriminator_upscale_gradients = tape.gradient(
-            disc_upscale_loss, discriminator_anime_upscale.trainable_variables
+        generator_upscale_gradients = generator_anime_upscale_optimizer.get_unscaled_gradients(
+            tape.gradient(
+                scaled_gen_upscale_loss, generator_anime_upscale.trainable_variables
+            )
         )
 
-        # Apply the gradients to the optimizer
+        discriminator_human_gradients = discriminator_human_optimizer.get_unscaled_gradients(
+            tape.gradient(
+                scaled_disc_human_loss, discriminator_human.trainable_variables
+            )
+        )
+        discriminator_anime_gradients = discriminator_anime_optimizer.get_unscaled_gradients(
+            tape.gradient(
+                scaled_disc_anime_loss, discriminator_anime.trainable_variables
+            )
+        )
+
+        discriminator_upscale_gradients = discriminator_anime_upscale_optimizer.get_unscaled_gradients(
+            tape.gradient(
+                scaled_disc_upscale_loss,
+                discriminator_anime_upscale.trainable_variables,
+            )
+        )
 
         generator_to_anime_optimizer.apply_gradients(
             zip(generator_to_anime_gradients, generator_to_anime.trainable_variables)
         )
 
-        generator_to_real_optimizer.apply_gradients(
+        generator_to_human_optimizer.apply_gradients(
             zip(generator_to_human_gradients, generator_to_real.trainable_variables)
         )
-        
+
         generator_anime_upscale_optimizer.apply_gradients(
             zip(
                 generator_upscale_gradients, generator_anime_upscale.trainable_variables
@@ -217,7 +274,6 @@ def run_tensorflow():
         discriminator_human_optimizer.apply_gradients(
             zip(discriminator_human_gradients, discriminator_human.trainable_variables)
         )
-
 
         discriminator_anime_optimizer.apply_gradients(
             zip(discriminator_anime_gradients, discriminator_anime.trainable_variables)
@@ -230,7 +286,9 @@ def run_tensorflow():
             )
         )
 
-        return (
+        return [
+            real_human,
+            real_anime,
             fake_anime,
             cycled_human,
             fake_human,
@@ -247,13 +305,14 @@ def run_tensorflow():
             total_gen_human_loss,
             gen_upscale_loss,
             disc_upscale_loss,
-        )
+        ]
 
     def process_data_for_display(input_image):
         return input_image * 0.5 + 0.5
 
     counter = 0
     i = -1
+
     while True:
         i = i + 1
         counter = counter + 1
@@ -264,6 +323,8 @@ def run_tensorflow():
         if not (i % 5):
 
             (
+                AnimeTrainImage,
+                CelebATrainImage,
                 fake_anime,
                 cycled_human,
                 fake_human,
@@ -281,16 +342,18 @@ def run_tensorflow():
                 gen_upscale_loss,
                 disc_upscale_loss,
             ) = trainstep(CelebaBatchImage, AnimeBatchImage, BigAnimeBatchImage)
+            print(type(AnimeTrainImage))
+            print(AnimeTrainImage.shape)
 
             with file_writer.as_default():
                 tf.summary.image(
-                    "AnimeBatchImage",
-                    process_data_for_display(AnimeBatchImage),
+                    "AnimeTrainImage",
+                    process_data_for_display(AnimeTrainImage),
                     step=counter,
                 )
                 tf.summary.image(
-                    "CelebaBatchImage",
-                    process_data_for_display(CelebaBatchImage),
+                    "CelebATrainImage",
+                    process_data_for_display(CelebATrainImage),
                     step=counter,
                 )
                 tf.summary.image(
@@ -328,10 +391,9 @@ def run_tensorflow():
                 tf.summary.scalar("gen_upscale_loss", gen_upscale_loss, step=counter)
                 tf.summary.scalar("disc_upscale_loss", disc_upscale_loss, step=counter)
 
-                # tf.summary.image("CelebaBatchImage", CelebaBatchImage, step=counter)
-
             ckpt_manager.save()
         else:
+            # trainstep(CelebaBatchImage, AnimeBatchImage, BigAnimeBatchImage)
             trainstep(CelebaBatchImage, AnimeBatchImage, BigAnimeBatchImage)
 
 
