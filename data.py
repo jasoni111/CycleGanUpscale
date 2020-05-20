@@ -12,7 +12,7 @@ def decode_img(img,IMG_WIDTH, IMG_HEIGHT):
     img = tf.image.resize(img, [IMG_WIDTH+30, IMG_HEIGHT+30])
     img = tf.image.random_crop(img,[IMG_HEIGHT, IMG_WIDTH, 3] )
 
-    return  tf.image.resize(img, [128,128]) ,  img
+    return  tf.image.resize(img, [64,64]) ,  img
 
 def process_path(file_path,IMG_WIDTH, IMG_HEIGHT):
 #   label = get_label(file_path)
@@ -55,8 +55,8 @@ def getAnimeCleanData(  BATCH_SIZE = 32 ,
 
     Keyword Arguments:
         BATCH_SIZE {int} -- [description] (default: {32})
-        IMG_WIDTH {int} -- [description] (default: {128})
-        IMG_HEIGHT {int} -- [description] (default: {128})
+        IMG_WIDTH {int} -- [description] (default: {256})
+        IMG_HEIGHT {int} -- [description] (default: {256})
 
     Returns:
         [PrefetchDataset] -- [description]
@@ -82,7 +82,7 @@ def decode_celeba_img(img,IMG_WIDTH, IMG_HEIGHT):
     # resize the image to the desired size.
     img = tf.image.resize(img, [IMG_WIDTH+30, IMG_HEIGHT+30])
     img = tf.image.random_crop(img,[IMG_HEIGHT, IMG_WIDTH, 3] )
-    return tf.image.resize(img, [128,128] )
+    return tf.image.resize(img, [64,64] )
 
 def process_celeba(file_path,IMG_WIDTH, IMG_HEIGHT):
 #   label = get_label(file_path)
@@ -92,14 +92,14 @@ def process_celeba(file_path,IMG_WIDTH, IMG_HEIGHT):
     return img
 
 def getCelebaData(  BATCH_SIZE = 32 ,
-                        IMG_WIDTH  = 512 ,
-                        IMG_HEIGHT = 512 ):
+                        IMG_WIDTH  = 256 ,
+                        IMG_HEIGHT = 256 ):
     """[summary]
 
     Keyword Arguments:
         BATCH_SIZE {int} -- [description] (default: {32})
-        IMG_WIDTH {int} -- [description] (default: {128})
-        IMG_HEIGHT {int} -- [description] (default: {128})
+        IMG_WIDTH {int} -- [description] (default: {256})
+        IMG_HEIGHT {int} -- [description] (default: {256})
 
     Returns:
         [PrefetchDataset] -- [description]
