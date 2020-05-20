@@ -3,6 +3,43 @@ import tensorflow as tf
 # This only happens to tensoflow<=2.1
 import tensorflow_addons as tfa
 
+
+class StarDiscriminator(tf.keras.layers.Layer):
+    def __init__(self):
+        super(StarDiscriminator,self).__init__()
+        pass
+
+    def build(self, input_shape):
+        dim = input_shape[1]
+        init = tf.keras.initializers.RandomNormal(stddev=0.02)
+
+        self.layers = []
+        
+        mult = 2
+        i = dim // 2
+
+        self.layers.append(  tf.keras.layers.Conv2D(16, (4,4), strides=(2,2), padding='same', kernel_initializer=init))
+        self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
+
+        while i > 4 :
+            self.layers.append(  tf.keras.layers.Conv2D(16 * mult, (4,4), strides=(2,2), padding='same', kernel_initializer=init))
+            self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
+            i //=2
+            mult *= 2
+
+        self.logit_out_layer = tf.keras.layers.Conv2D(1, (4,4), padding='valid', kernel_initializer=init)
+        self.label_out_layer = tf.keras.layers.Conv2D(1, (4,4), padding='valid', kernel_initializer=init) 
+        self.out_layer = tf.keras.layers.Activation("linear" , dtype='float32')
+        self.out_sigmoid_layer = tf.keras.layers.Activation("sigmoid" , dtype='float32')
+
+    def call(self, inputs):
+        for layer in self.layers:
+            inputs = layer(inputs)
+        logit = self.out_layer(self.logit_out_layer(inputs))
+        label = self.out_sigmoid_layer(self.label_out_layer(inputs))
+
+        return logit,label
+
 class Discriminator(tf.keras.layers.Layer):
     def __init__(self):
         super(Discriminator,self).__init__()
@@ -48,30 +85,15 @@ class W_Discriminator(tf.keras.layers.Layer):
         init = tf.keras.initializers.RandomNormal(stddev=0.02)
 
         self.layers = []
-        self.layers.append(  tf.keras.layers.Conv2D(32, (3,3), padding='same', kernel_initializer=init))
-        self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
-        if dim>=256:
-            mult = 4
-            i = dim // 16
-            
-            self.layers.append(  tf.keras.layers.Conv2D(32, (4,4), strides=(4,4), padding='same', kernel_initializer=init))
-            self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
+        
+        mult = 2
+        i = dim // 2
 
-            self.layers.append(  tf.keras.layers.Conv2D(32, (4,4), strides=(4,4), padding='same', kernel_initializer=init))
-            self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
-
-        else:
-            mult = 2
-            i = dim // 2
-
-            self.layers.append(  tf.keras.layers.Conv2D(16, (2,2), strides=(2,2), padding='same', kernel_initializer=init))
-            self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
-
-        self.layers.append(  tf.keras.layers.Conv2D(32, (3,3), padding='same', kernel_initializer=init))
+        self.layers.append(  tf.keras.layers.Conv2D(16, (4,4), strides=(2,2), padding='same', kernel_initializer=init))
         self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
 
         while i > 4 :
-            self.layers.append(  tf.keras.layers.Conv2D(16 * mult, (2,2), strides=(2,2), padding='same', kernel_initializer=init))
+            self.layers.append(  tf.keras.layers.Conv2D(16 * mult, (4,4), strides=(2,2), padding='same', kernel_initializer=init))
             self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2) )
             i //=2
             mult *= 2
@@ -82,4 +104,6 @@ class W_Discriminator(tf.keras.layers.Layer):
     def call(self, inputs):
         for layer in self.layers:
             inputs = layer(inputs)
+            tf.print("min_inputs",tf.keras.backend.min(inputs))
+        tf.print("~~~~~~~~~~")
         return inputs

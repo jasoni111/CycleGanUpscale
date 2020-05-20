@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
-
+import time
 
 
 # import matplotlib.pyplot as plt
@@ -47,28 +47,28 @@ def run_tensorflow():
     policy = mixed_precision.Policy("mixed_float16")
     mixed_precision.set_policy(policy)
 
-    AnimeCleanData = getAnimeCleanData(BATCH_SIZE=7)
-    CelebaData = getCelebaData(BATCH_SIZE=7)
+    AnimeCleanData = getAnimeCleanData(BATCH_SIZE=10)
+    CelebaData = getCelebaData(BATCH_SIZE=10)
 
     logdir = "./logs/train_data/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     file_writer = tf.summary.create_file_writer(logdir)
 
     generator_to_anime_optimizer = mixed_precision.LossScaleOptimizer(
-        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+        tf.keras.optimizers.Adam(1e-4, beta_1=0.5), loss_scale="dynamic"
     )
     generator_to_human_optimizer = mixed_precision.LossScaleOptimizer(
-        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+        tf.keras.optimizers.Adam(1e-4, beta_1=0.5), loss_scale="dynamic"
     )
 
     generator_anime_upscale_optimizer = mixed_precision.LossScaleOptimizer(
-        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+        tf.keras.optimizers.Adam(1e-4, beta_1=0.5), loss_scale="dynamic"
     )
 
     discriminator_human_optimizer = mixed_precision.LossScaleOptimizer(
-        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+        tf.keras.optimizers.Adam(1e-4, beta_1=0.5), loss_scale="dynamic"
     )
     discriminator_anime_optimizer = mixed_precision.LossScaleOptimizer(
-        tf.keras.optimizers.Adam(2e-4, beta_1=0.5), loss_scale="dynamic"
+        tf.keras.optimizers.Adam(1e-4, beta_1=0.5), loss_scale="dynamic"
     )
 
     discriminator_anime_upscale_optimizer = mixed_precision.LossScaleOptimizer(
@@ -86,7 +86,7 @@ def run_tensorflow():
     # discriminator_anime_upscale_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
     generator_to_anime = GeneratorV2()
-    generator_to_real = GeneratorV2()
+    generator_to_human = GeneratorV2()
 
     generator_anime_upscale = UpsampleGenerator()
 
@@ -100,7 +100,7 @@ def run_tensorflow():
 
     ckpt = tf.train.Checkpoint(
         generator_to_anime=generator_to_anime,
-        generator_to_real=generator_to_real,
+        generator_to_human=generator_to_human,
         generator_anime_upscale=generator_anime_upscale,  # *
         discriminator_human=discriminator_human,
         discriminator_anime=discriminator_anime,
@@ -128,15 +128,15 @@ def run_tensorflow():
         with tf.GradientTape(persistent=True) as tape:
 
             fake_anime = generator_to_anime(real_human, training=True)
-            cycled_human = generator_to_real(fake_anime, training=True)
+            cycled_human = generator_to_human(fake_anime, training=True)
 
             print("generator_to_anime", generator_to_anime.count_params())
 
-            fake_human = generator_to_real(real_anime, training=True)
+            fake_human = generator_to_human(real_anime, training=True)
             cycled_anime = generator_to_anime(fake_human, training=True)
 
             # same_human and same_anime are used for identity loss.
-            same_human = generator_to_real(real_human, training=True)
+            same_human = generator_to_human(real_human, training=True)
             same_anime = generator_to_anime(real_anime, training=True)
 
             disc_real_human = discriminator_human(real_human, training=True)
@@ -148,6 +148,7 @@ def run_tensorflow():
 
             fake_anime_upscale = generator_anime_upscale(fake_anime, training=True)
             real_anime_upscale = generator_anime_upscale(cycled_anime, training=True)
+            true_anime_upscale = generator_anime_upscale(real_anime, training=True)
 
             disc_fake_upscale = discriminator_anime_upscale(fake_anime_upscale, training=True)
 
@@ -155,8 +156,8 @@ def run_tensorflow():
             disc_real_big = discriminator_anime_upscale(big_anime, training=True)
             # assert()
             # calculate the loss
-            gen_anime_loss = w_g_loss(disc_fake_anime)
-            gen_human_loss = w_g_loss(disc_fake_human)
+            gen_anime_loss = w_g_loss(disc_fake_anime)* 1e2
+            gen_human_loss = w_g_loss(disc_fake_human)* 1e2
 
             total_cycle_loss = cycle_loss(real_human, cycled_human) + cycle_loss(
                 real_anime, cycled_anime
@@ -164,28 +165,45 @@ def run_tensorflow():
 
             # Total generator loss = adversarial loss + cycle loss
             total_gen_anime_loss = (
-                gen_anime_loss * 5
+                gen_anime_loss 
                 + total_cycle_loss
                 + identity_loss(real_anime, same_anime)
             )
 
+            tf.print("gen_anime_loss",gen_anime_loss)
+            tf.print("total_cycle_loss",total_cycle_loss)
+            tf.print("identity_loss(real_anime, same_anime)",identity_loss(real_anime, same_anime))
+
             total_gen_human_loss = (
-                gen_human_loss * 5
+                gen_human_loss
                 + total_cycle_loss
                 + identity_loss(real_human, same_human)
             )
-
+            gan_upscale_fake_loss = w_g_loss(disc_fake_upscale)
+            gan_upscale_real_loss = w_g_loss(disc_real_upscale)
+            
             gen_upscale_loss = (
-                w_g_loss(disc_fake_upscale)
-                + w_g_loss(disc_real_upscale)
+                gan_upscale_fake_loss
+                + gan_upscale_real_loss
                 # + mse_loss(big_anime, real_anime_upscale) * 0.1
                 + identity_loss(big_anime, real_anime_upscale) * 0.1
+                + identity_loss(big_anime, true_anime_upscale) * 0.1
             )
+            tf.print("gan_upscale_fake_loss",gan_upscale_fake_loss)
+            tf.print("gan_upscale_real_loss",gan_upscale_real_loss)
+            tf.print("identity_loss(big_anime, real_anime_upscale)",identity_loss(big_anime, real_anime_upscale)*0.1)
+            tf.print("identity_loss(big_anime, true_anime_upscale)",identity_loss(big_anime, true_anime_upscale)*0.01)
+            
 
-            discriminator_human_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), real_human, fake_human)*10
-            discriminator_anime_gradient_penalty = gradient_penalty(functools.partial(discriminator_anime, training=True), real_anime, fake_anime)*10
-            discriminator_upscale_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,fake_anime_upscale )*5
-            discriminator_upscale_gradient_penalty += gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,real_anime_upscale )*5
+            discriminator_human_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), real_human, fake_human)
+            discriminator_anime_gradient_penalty = gradient_penalty(functools.partial(discriminator_anime, training=True), real_anime, fake_anime)
+            discriminator_upscale_gradient_penalty = gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,fake_anime_upscale )
+            # discriminator_upscale_gradient_penalty += gradient_penalty(functools.partial(discriminator_human, training=True), big_anime,real_anime_upscale )
+            # discriminator_upscale_gradient_penalty *= 1e-4
+            tf.print("discriminator_anime_gradient_penalty",discriminator_anime_gradient_penalty)
+            tf.print("discriminator_human_gradient_penalty",discriminator_human_gradient_penalty)
+            tf.print("discriminator_upscale_gradient_penalty",discriminator_upscale_gradient_penalty)
+            tf.print("____________________________________________")
 
             disc_human_loss = (
                 w_d_loss(disc_real_human, disc_fake_human)
@@ -229,7 +247,7 @@ def run_tensorflow():
 
         generator_to_human_gradients = generator_to_human_optimizer.get_unscaled_gradients(
             tape.gradient(
-                scaled_total_gen_human_loss, generator_to_real.trainable_variables
+                scaled_total_gen_human_loss, generator_to_human.trainable_variables
             )
         )
 
@@ -262,7 +280,7 @@ def run_tensorflow():
         )
 
         generator_to_human_optimizer.apply_gradients(
-            zip(generator_to_human_gradients, generator_to_real.trainable_variables)
+            zip(generator_to_human_gradients, generator_to_human.trainable_variables)
         )
 
         generator_anime_upscale_optimizer.apply_gradients(
@@ -312,14 +330,15 @@ def run_tensorflow():
 
     counter = 0
     i = -1
-
+    last_time = time.time()
     while True:
         i = i + 1
         counter = counter + 1
         AnimeBatchImage, BigAnimeBatchImage = next(iter(AnimeCleanData))
         CelebaBatchImage = next(iter(CelebaData))
         print(counter)
-
+        print(time.time()-last_time)
+        last_time = time.time()
         if not (i % 5):
 
             (

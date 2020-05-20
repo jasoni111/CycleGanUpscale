@@ -54,7 +54,7 @@ def run_tensorflow():
     discriminator_anime_upscale_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
     generator_to_anime = GeneratorV2()
-    generator_to_real = GeneratorV2()
+    generator_to_human = GeneratorV2()
 
     generator_anime_upscale = UpsampleGenerator()
 
@@ -68,7 +68,7 @@ def run_tensorflow():
 
     ckpt = tf.train.Checkpoint(
         generator_to_anime=generator_to_anime,
-        generator_to_real=generator_to_real,
+        generator_to_human=generator_to_human,
         generator_anime_upscale=generator_anime_upscale,  # *
         discriminator_human=discriminator_human,
         discriminator_anime=discriminator_anime,
@@ -96,15 +96,15 @@ def run_tensorflow():
         with tf.GradientTape(persistent=True) as tape:
 
             fake_anime = generator_to_anime(real_human, training=True)
-            cycled_human = generator_to_real(fake_anime, training=True)
+            cycled_human = generator_to_human(fake_anime, training=True)
 
             print("generator_to_anime", generator_to_anime.count_params())
 
-            fake_human = generator_to_real(real_anime, training=True)
+            fake_human = generator_to_human(real_anime, training=True)
             cycled_anime = generator_to_anime(fake_human, training=True)
 
             # same_human and same_anime are used for identity loss.
-            same_human = generator_to_real(real_human, training=True)
+            same_human = generator_to_human(real_human, training=True)
             same_anime = generator_to_anime(real_anime, training=True)
 
             disc_real_human = discriminator_human(real_human, training=True)
@@ -202,7 +202,7 @@ def run_tensorflow():
             total_gen_anime_loss, generator_to_anime.trainable_variables
         )
         generator_to_human_gradients = tape.gradient(
-            total_gen_human_loss, generator_to_real.trainable_variables
+            total_gen_human_loss, generator_to_human.trainable_variables
         )
         generator_upscale_gradients = tape.gradient(
             gen_upscale_loss, generator_anime_upscale.trainable_variables
@@ -224,7 +224,7 @@ def run_tensorflow():
         )
 
         generator_to_human_optimizer.apply_gradients(
-            zip(generator_to_human_gradients, generator_to_real.trainable_variables)
+            zip(generator_to_human_gradients, generator_to_human.trainable_variables)
         )
 
         generator_anime_upscale_optimizer.apply_gradients(

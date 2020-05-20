@@ -46,11 +46,11 @@ def run_tensorflow():
     # # checkpoint_path = "./checkpoints/train"
 
     # # ckpt = tf.train.Checkpoint(generator_to_anime=generator_to_anime,
-    # #                            generator_to_real=generator_to_real,
+    # #                            generator_to_human=generator_to_human,
     # #                            discriminator_x=discriminator_x,
     # #                            discriminator_y=discriminator_y,
     # #                            generator_to_anime_optimizer=generator_to_anime_optimizer,
-    # #                            generator_to_real_optimizer=generator_to_real_optimizer,
+    # #                            generator_to_human_optimizer=generator_to_human_optimizer,
     # #                            discriminator_x_optimizer=discriminator_x_optimizer,
     # #                            discriminator_y_optimizer=discriminator_y_optimizer)
 
@@ -62,7 +62,7 @@ def run_tensorflow():
     # #   print ('Latest checkpoint restored!!')
 
     generator_to_anime_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-    generator_to_real_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    generator_to_human_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
     discriminator_x_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
     discriminator_y_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
@@ -73,7 +73,7 @@ def run_tensorflow():
     # out: Batch, 16, 16, 1
 
     generator_to_anime = Generator()
-    generator_to_real = Generator()
+    generator_to_human = Generator()
 
 # x is human, y is anime
     @tf.function
@@ -81,13 +81,13 @@ def run_tensorflow():
         with tf.GradientTape(persistent = True) as tape:
 
             fake_anime = generator_to_anime(real_human, training=True)
-            cycled_human = generator_to_real(fake_anime, training=True)
+            cycled_human = generator_to_human(fake_anime, training=True)
 
-            fake_human = generator_to_real(real_anime, training=True)
+            fake_human = generator_to_human(real_anime, training=True)
             cycled_anime = generator_to_anime(fake_human, training=True)
 
             # same_human and same_anime are used for identity loss.
-            same_human = generator_to_real(real_human, training=True)
+            same_human = generator_to_human(real_human, training=True)
             same_anime = generator_to_anime(real_anime, training=True)
 
             disc_real_human = discriminator_x(real_human, training=True)
@@ -113,7 +113,7 @@ def run_tensorflow():
         generator_to_anime_gradients = tape.gradient(total_gen_anime_loss, 
                                             generator_to_anime.trainable_variables)
         generator_to_human_gradients = tape.gradient(total_gen_human_loss, 
-                                            generator_to_real.trainable_variables)
+                                            generator_to_human.trainable_variables)
 
         discriminator_x_gradients = tape.gradient(disc_x_loss, 
                                                 discriminator_x.trainable_variables)
@@ -124,8 +124,8 @@ def run_tensorflow():
         generator_to_anime_optimizer.apply_gradients(zip(generator_to_anime_gradients, 
                                                 generator_to_anime.trainable_variables))
 
-        generator_to_real_optimizer.apply_gradients(zip(generator_to_human_gradients, 
-                                                generator_to_real.trainable_variables))
+        generator_to_human_optimizer.apply_gradients(zip(generator_to_human_gradients, 
+                                                generator_to_human.trainable_variables))
 
         discriminator_x_optimizer.apply_gradients(zip(discriminator_x_gradients,
                                                     discriminator_x.trainable_variables))

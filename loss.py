@@ -31,7 +31,17 @@ def _interpolate(a, b):
   inter.set_shape(a.shape)
   return inter
 
-
+def gradient_penalty_star(f, real, fake):
+  x = _interpolate(real, fake)
+  with tf.GradientTape() as tape:
+      tape.watch(x)
+      pred,_ = f(x)
+  grad = tape.gradient(pred, x)
+  grad = grad
+  norm = tf.norm(tf.reshape(grad, [tf.shape(grad)[0], -1]), axis=1)
+  # print("norm",tf.keras.backend.max(norm))
+  gp = tf.reduce_mean((norm - 1.)**2)
+  return gp
 
 def gradient_penalty(f, real, fake):
   x = _interpolate(real, fake)
@@ -39,9 +49,23 @@ def gradient_penalty(f, real, fake):
       tape.watch(x)
       pred = f(x)
   grad = tape.gradient(pred, x)
+  grad = grad
   norm = tf.norm(tf.reshape(grad, [tf.shape(grad)[0], -1]), axis=1)
+  # print("norm",tf.keras.backend.max(norm))
   gp = tf.reduce_mean((norm - 1.)**2)
   return gp
+# def gradient_penalty(f, real, fake):
+#   alpha = tf.random.uniform([real.shape[0], 1, 1, 1], 0.0, 1.0)
+#   inter_sample = fake * alpha + real * (1 - alpha)
+#   with tf.GradientTape() as tape_gp:
+#     tape_gp.watch(inter_sample)
+#     inter_score = f(inter_sample)
+#   gp_gradients = tape_gp.gradient(inter_score, inter_sample)
+#   gp_gradients_norm = tf.sqrt(tf.reduce_sum(tf.square(gp_gradients), axis = [1, 2, 3]))
+#   tf.print("norm",tf.reduce_max(gp_gradients_norm))
+#   gp = tf.reduce_mean((gp_gradients_norm - 1.0) ** 2)
+#   return gp
+
 
   # return  _gradient_penalty(f, real, fake)
 
@@ -59,10 +83,10 @@ def discriminator_loss(real, generated):
   real_loss = loss_obj(tf.ones_like(real), real)
   generated_loss = loss_obj(tf.zeros_like(generated), generated)
   total_disc_loss = real_loss + generated_loss
-  return 5 * total_disc_loss * 0.5
+  return total_disc_loss * 0.5
 
 def generator_loss(generated):
-  return 3 * loss_obj(tf.ones_like(generated), generated)
+  return loss_obj(tf.ones_like(generated), generated)
 
 def cycle_loss(real_image, cycled_image):
   loss1 = tf.reduce_mean(tf.abs(real_image - cycled_image))

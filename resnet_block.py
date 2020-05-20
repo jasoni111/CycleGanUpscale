@@ -13,7 +13,7 @@ class ResNetBlockInstanceNorm(tf.keras.layers.Layer):
         init =  tf.keras.initializers.RandomNormal(stddev=0.02)
         self.cov1 = tf.keras.layers.Conv2D(self.num_filter, (3,3), padding = 'same',kernel_initializer=init)
         self.i_norm1 =  tfa.layers.InstanceNormalization(axis=-1)
-        self.relu = tf.keras.layers.ReLU()
+        self.relu = tf.keras.layers.LeakyReLU(alpha=0.2)
         self.cov2 = tf.keras.layers.Conv2D(self.num_filter, (3,3), padding = 'same',kernel_initializer=init)
         self.i_norm2 =  tfa.layers.InstanceNormalization(axis=-1)
         self.sum = tf.keras.layers.Add()
