@@ -34,8 +34,8 @@ class StarDiscriminator(tf.keras.layers.Layer):
 
         self.logit_out_layer = tf.keras.layers.Conv2D(1, (4,4), padding='valid', kernel_initializer=init)
         self.label_out_layer = tf.keras.layers.Conv2D(1, (4,4), padding='valid', kernel_initializer=init) 
-        self.out_layer = tf.keras.layers.Activation("linear" , dtype='float32')
-        self.out_sigmoid_layer = tf.keras.layers.Activation("linear" , dtype='float32')
+        self.out_layer = tf.keras.layers.Activation("sigmoid" , dtype='float32')
+        self.out_sigmoid_layer = tf.keras.layers.Activation("sigmoid" , dtype='float32')
 
     def call(self, inputs):
         for layer in self.layers:
@@ -71,7 +71,7 @@ class Discriminator(tf.keras.layers.Layer):
         self.layers.append(  tf.keras.layers.LeakyReLU(alpha=0.2))
         # patch output
         self.layers.append( tf.keras.layers.Conv2D(1, (4,4), padding='same', kernel_initializer=init)) 
-        self.layers.append(tf.keras.layers.Activation("linear" , dtype='float32') )
+        self.layers.append(tf.keras.layers.Activation("sigmoid" , dtype='float32') )
         # self.layers.append(tf.keras.activations.linear(dtype='float32') )
 
     def call(self, inputs):

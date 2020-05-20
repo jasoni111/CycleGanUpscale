@@ -186,14 +186,14 @@ def run_tensorflow():
         )
 
         with tf.GradientTape(persistent=True) as tape:
-            fake_anime_up = up_G(real_anime)
-            real_anime_up = up_G(fake_anime)
+            real_anime_up = up_G(real_anime)
+            fake_anime_up = up_G(fake_anime)
 
             dis_fake_anime_up = up_D(fake_anime_up)
             dis_real_anime_up = up_D(real_anime_up)
             dis_ori_anime = up_D(big_anime)
-            gen_up_loss =  generator_loss(fake_anime_up) + generator_loss(dis_real_anime_up)
-            dis_up_loss = discriminator_loss(dis_ori_anime,dis_fake_anime_up)+discriminator_loss(dis_ori_anime,dis_real_anime_up)
+            gen_up_loss =  generator_loss(fake_anime_up) + generator_loss(dis_real_anime_up)*0.1
+            dis_up_loss = discriminator_loss(dis_ori_anime,dis_fake_anime_up)+discriminator_loss(dis_ori_anime,dis_real_anime_up)*0.1
             scaled_gen_up_loss = up_G_optim.get_scaled_loss(gen_up_loss)
             scaled_disc_loss = up_D_optim.get_scaled_loss(dis_up_loss)
 
@@ -251,8 +251,6 @@ def run_tensorflow():
             "gen_human_loss",
             "disc_human_loss",
             "disc_anime_loss",
-            "total_gen_anime_loss",
-            "total_gen_human_loss",
             "gen_up_loss",
             "dis_up_loss"
     ]

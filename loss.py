@@ -2,7 +2,8 @@ import tensorflow as tf
 
 LAMBDA = 10
 
-loss_obj = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+# loss_obj = tf.keras.losses.MSE
+loss_obj =tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 # def w_discriminator_loss(real, generated):
 #   real_loss = -tf.reduce_mean(real)
